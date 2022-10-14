@@ -17,10 +17,10 @@ inputs:
     required: false
     description: The behavior of the labels filter, AND to match all labels, OR to match any label, NOT to exclude any listed label (default is OR)
   field-name:
-    required: true
+    required: false
     description: The field for which to modify the issue
   field-option:
-    required: true
+    required: false
     description: The option to set for the selected field
 
 runs:
