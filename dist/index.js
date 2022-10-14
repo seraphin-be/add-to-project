@@ -50,8 +50,8 @@ function addToProject() {
     return __awaiter(this, void 0, void 0, function* () {
         const projectUrl = core.getInput('project-url', { required: true });
         const ghToken = core.getInput('github-token', { required: true });
-        const fieldName = core.getInput('field-name', { required: true });
-        const fieldOptionName = core.getInput('field-option', { required: true });
+        const fieldName = core.getInput('field-name', { required: false });
+        const fieldOptionName = core.getInput('field-option', { required: false });
         const labeled = (_a = core
             .getInput('labeled')
             .split(',')
@@ -151,8 +151,9 @@ function addToProject() {
             createdItemId = itemId;
         }
         core.debug(`Created Item ID: ${createdItemId}`);
-        // Find the field and gather available options
-        const queryFieldResp = yield octokit.graphql(`query getOptionField($projectId: ID!, $fieldName: String!) {
+        if (fieldName) {
+            // Find the field and gather available options
+            const queryFieldResp = yield octokit.graphql(`query getOptionField($projectId: ID!, $fieldName: String!) {
       node(id: $projectId) { ... on ProjectV2 {
         field(name: $fieldName) { ... on ProjectV2SingleSelectField {
           id
@@ -163,15 +164,15 @@ function addToProject() {
         }}
       }}
     }`, {
-            projectId,
-            fieldName
-        });
-        const fieldId = queryFieldResp.node.field.id;
-        core.debug(`Field Option ID: ${fieldId}`);
-        const fieldOption = (_k = queryFieldResp.node.field.options.find(option => option.name === fieldOptionName)) === null || _k === void 0 ? void 0 : _k.id;
-        core.debug(`Field Option option ID: ${fieldOption}`);
-        // Next, now we have the item we can mutate it to place it in the desired iteration and column of our board
-        const columnMoveResp = yield octokit.graphql(`mutation addIssueToColumn($projectId: ID!, $itemId: ID!, $fieldId: ID!, $fieldOption: String!) {
+                projectId,
+                fieldName
+            });
+            const fieldId = queryFieldResp.node.field.id;
+            core.debug(`Field Option ID: ${fieldId}`);
+            const fieldOption = (_k = queryFieldResp.node.field.options.find(option => option.name === fieldOptionName)) === null || _k === void 0 ? void 0 : _k.id;
+            core.debug(`Field Option option ID: ${fieldOption}`);
+            // Next, now we have the item we can mutate it to place it in the desired iteration and column of our board
+            const columnMoveResp = yield octokit.graphql(`mutation addIssueToColumn($projectId: ID!, $itemId: ID!, $fieldId: ID!, $fieldOption: String!) {
       updateProjectV2ItemFieldValue(input: {
         projectId: $projectId
         itemId: $itemId
@@ -185,14 +186,14 @@ function addToProject() {
         }
       }
     }`, {
-            projectId,
-            itemId: createdItemId,
-            fieldId,
-            fieldOption
-        });
-        core.setOutput('itemId', columnMoveResp.updateProjectV2ItemFieldValue.projectV2Item.id);
-        // Find the latest iteration
-        const queryIterationResp = yield octokit.graphql(`query getIteration($projectId: ID!) {
+                projectId,
+                itemId: createdItemId,
+                fieldId,
+                fieldOption
+            });
+            core.setOutput('itemId', columnMoveResp.updateProjectV2ItemFieldValue.projectV2Item.id);
+            // Find the latest iteration
+            const queryIterationResp = yield octokit.graphql(`query getIteration($projectId: ID!) {
       node(id: $projectId) { ... on ProjectV2 {
         field(name: "Iteration") { ... on ProjectV2IterationField {
           id
@@ -205,17 +206,17 @@ function addToProject() {
         }}
       }}
     }`, {
-            projectId
-        });
-        const iterationFieldId = queryIterationResp.node.field.id;
-        // Rationale is that we don't expect overlapping iterations
-        const iterationId = queryIterationResp.node.field.configuration.iterations.reduce((previous, current) => {
-            return previous.startDate > current.startDate ? previous : current;
-        }).id;
-        core.debug(`Iteration Field ID: ${iterationFieldId}`);
-        core.debug(`Iteration ID: ${iterationId}`);
-        // Add the item to the latest iteration found
-        const iterationMoveResp = yield octokit.graphql(`mutation addIssueToIteration($projectId: ID!, $itemId: ID!, $fieldId: ID!, $iterationId: String!) {
+                projectId
+            });
+            const iterationFieldId = queryIterationResp.node.field.id;
+            // Rationale is that we don't expect overlapping iterations
+            const iterationId = queryIterationResp.node.field.configuration.iterations.reduce((previous, current) => {
+                return previous.startDate > current.startDate ? previous : current;
+            }).id;
+            core.debug(`Iteration Field ID: ${iterationFieldId}`);
+            core.debug(`Iteration ID: ${iterationId}`);
+            // Add the item to the latest iteration found
+            const iterationMoveResp = yield octokit.graphql(`mutation addIssueToIteration($projectId: ID!, $itemId: ID!, $fieldId: ID!, $iterationId: String!) {
       updateProjectV2ItemFieldValue(input: {
         projectId: $projectId
         itemId: $itemId
@@ -229,12 +230,13 @@ function addToProject() {
         }
       }
     }`, {
-            projectId,
-            itemId: createdItemId,
-            fieldId: iterationFieldId,
-            iterationId
-        });
-        core.setOutput('itemId', iterationMoveResp.updateProjectV2ItemFieldValue.projectV2Item.id);
+                projectId,
+                itemId: createdItemId,
+                fieldId: iterationFieldId,
+                iterationId
+            });
+            core.setOutput('itemId', iterationMoveResp.updateProjectV2ItemFieldValue.projectV2Item.id);
+        }
     });
 }
 exports.addToProject = addToProject;
