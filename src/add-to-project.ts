@@ -67,6 +67,7 @@ interface ProjectV2GetIterationResponse {
           {
             startDate: string
             id: string
+            duration: number
           }
         ]
       }
@@ -264,6 +265,7 @@ export async function addToProject(): Promise<void> {
             iterations {
               startDate
               id
+              duration
             }
           }
         }}
@@ -275,9 +277,17 @@ export async function addToProject(): Promise<void> {
     )
     const iterationFieldId = queryIterationResp.node.field.id
     // Rationale is that we don't expect overlapping iterations
-    const iterationId = queryIterationResp.node.field.configuration.iterations.reduce((previous, current) => {
-      return previous.startDate > current.startDate ? previous : current
-    }).id
+    // const iterationId = queryIterationResp.node.field.configuration.iterations.reduce((previous, current) => {
+    //   return previous.startDate > current.startDate ? previous : current
+    // }).id
+
+    const currentDate = new Date(Date.now())
+    const iterationId = queryIterationResp.node.field.configuration.iterations.find(iter => {
+      const startDate = new Date(iter.startDate)
+      const endDate = new Date()
+      endDate.setDate(startDate.getDate() + iter.duration)
+      return startDate <= currentDate && currentDate <= endDate
+    })?.id
     core.debug(`Iteration Field ID: ${iterationFieldId}`)
     core.debug(`Iteration ID: ${iterationId}`)
 
